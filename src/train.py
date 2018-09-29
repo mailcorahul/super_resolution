@@ -19,6 +19,7 @@ parser.add_argument('--epochs',type=int, help='total number of epochs')
 parser.add_argument('--resume', type=bool, default=False)
 parser.add_argument('--model_num',type=int, help='epoch to resume',default=-1)
 parser.add_argument('--gpu',type=str, help='gpu id')
+parser.add_argument('--lr', type=float, help='learning rate')
 args = parser.parse_args()
 
 # method to initialize weights
@@ -58,20 +59,24 @@ def shuffle(x, y) :
 	return xshuffled, yshuffled ;
 
 
+log_mode = 'w';
 if args.gpu == "cpu":
 	device = "cpu";
 else:
 	device = torch.device("cuda:" + args.gpu if torch.cuda.is_available() else "cpu")
 # resume training
 if args.resume:
-        model = torch.load('../models/weights' + str(args.model_num) + '.pt',map_location={'cuda:0':'cpu'});#'cuda:' + args.gpu});
+	log_mode = 'a';
+        model = torch.load('../models/weights' + str(args.model_num) + '.pt',map_location={'cuda:0':'cuda:' + args.gpu});
+	print('Resuming training from epoch ' , args.model_num);
 else :
 	model = SRNet() ;
 	model.apply(init_weights) ;
+	print('Starting a new training');
 model.to(device);
 
 criterion = nn.MSELoss() ;
-optimizer = optim.SGD(model.parameters(), lr=0.02) ;
+optimizer = optim.SGD(model.parameters(), lr=args.lr) ;
 
 # hyperparameters
 EPOCHS = args.epochs ;
@@ -83,7 +88,7 @@ trainx, trainy, testx, testy = load_data() ;
 STEPS = TRAINING_SIZE / BATCH_SIZE ;
 print('Total number of steps', STEPS);
 
-log = open('../logs/log.txt','a');
+log = open('../logs/log.txt',log_mode);
 
 for epoch in range(args.model_num + 1, EPOCHS) :
 
@@ -107,6 +112,7 @@ for epoch in range(args.model_num + 1, EPOCHS) :
 
 	print('Epoch ', epoch ,' Loss : ', cost / STEPS) ;
 	log.write('Epoch ' +  str(epoch) + ' Loss : ' + str(cost / STEPS) + '\n');
+	log.flush();
 	torch.save(model, '../models/weights' + str(epoch) + '.pt') ;
 
 log.close();
